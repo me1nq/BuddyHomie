@@ -29,12 +29,15 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
     try {
       // 1. ตรวจสอบรหัสผ่านจาก Supabase (Table: auth)
-      // หมายเหตุ: การเช็ค Password แบบ Plain text ไม่แนะนำสำหรับ Production 
+      // หมายเหตุ: การเช็ค Password แบบ Plain text ไม่แนะนำสำหรับ Production
       // แต่สำหรับโปรเจกต์เรียน/ส่งงาน ถือว่าโอเคครับ
       final data = await Supabase.instance.client
           .from('auth')
           .select()
-          .eq('password', password) // เช็คว่ารหัสตรงไหม (ควรเช็ค username คู่กันด้วยในอนาคต)
+          .eq(
+            'password',
+            password,
+          ) // เช็คว่ารหัสตรงไหม (ควรเช็ค username คู่กันด้วยในอนาคต)
           .maybeSingle();
 
       if (data != null) {
@@ -44,18 +47,19 @@ class _LoginPageState extends State<LoginPage> {
             .update({'username': username})
             .eq('id', data['id']);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isLoggedIn', true);
+        await prefs.setBool('isLoggedIn', _rememberMe);
         await prefs.setString('username', username); // จำชื่อไว้โชว์ด้วยก็ได้
+        await prefs.setInt('userId', data['id']);
 
-      if (data['id'] == 0) {
-        //
-        if (mounted) {
-          _showSnackBar('ยินดีต้อนรับผู้ดูแลระบบ (Admin) 🔐');
-          // ไปหน้า Admin ทันที (ไม่ต้อง Update Username)
-          Navigator.pushReplacementNamed(context, '/admin');
+        if (data['id'] == 0) {
+          //
+          if (mounted) {
+            _showSnackBar('ยินดีต้อนรับผู้ดูแลระบบ (Admin) 🔐');
+            // ไปหน้า Admin ทันที (ไม่ต้อง Update Username)
+            Navigator.pushReplacementNamed(context, '/admin_wrapper');
+          }
+          return;
         }
-        return;
-      }
 
         if (mounted) {
           // *** เปลี่ยนหน้าไป MainWrapper (หน้าหลัก) ***
@@ -79,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(msg), 
+          content: Text(msg),
           backgroundColor: AppColors.brownDark, // ปรับสีให้เข้าธีม
         ),
       );
@@ -94,10 +98,7 @@ class _LoginPageState extends State<LoginPage> {
         decoration: const BoxDecoration(
           // ปรับ Gradient เป็นโทนน้ำตาล-ครีม ให้เข้ากับแอป
           gradient: LinearGradient(
-            colors: [
-              AppColors.brownDark,
-              AppColors.brownLight,
-            ],
+            colors: [AppColors.brownDark, AppColors.brownLight],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -121,14 +122,11 @@ class _LoginPageState extends State<LoginPage> {
               padding: EdgeInsets.symmetric(horizontal: 40),
               child: Text(
                 'หอพักคุณเจจวย ยินดีต้อนรับ',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
             ),
             const SizedBox(height: 40),
-            
+
             // กล่องสีขาวด้านล่าง
             Expanded(
               child: Container(
@@ -141,27 +139,67 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInputField("ชื่อผู้ใช้", "กรอก User ID หรือ Email", false, _usernameController),
+                      _buildInputField(
+                        "ชื่อผู้ใช้",
+                        "กรอก User ID หรือ Email",
+                        false,
+                        _usernameController,
+                      ),
                       const SizedBox(height: 30),
-                      _buildInputField("รหัสผ่าน", "กรอกรหัสผ่าน", true, _passwordController),
+                      _buildInputField(
+                        "รหัสผ่าน",
+                        "กรอกรหัสผ่าน",
+                        true,
+                        _passwordController,
+                      ),
 
                       const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {},
-                          child: const Text(
-                            'ลืมรหัสผ่าน?',
-                            style: TextStyle(
-                              color: AppColors.brownDark,
-                              fontWeight: FontWeight.bold,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // ส่วนของ Checkbox "จดจำฉัน"
+                          Row(
+                            children: [
+                              SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  activeColor: AppColors.brownDark,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value ?? false;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'จดจำฉัน',
+                                style: TextStyle(
+                                  color: AppColors.brownDark,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // ปุ่มลืมรหัสผ่าน (ของเดิม)
+                          TextButton(
+                            onPressed: () {},
+                            child: const Text(
+                              'ลืมรหัสผ่าน?',
+                              style: TextStyle(
+                                color: AppColors.brownDark,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
 
                       const SizedBox(height: 20),
-                      
+
                       // ปุ่ม Sign In
                       SizedBox(
                         width: double.infinity,
@@ -174,12 +212,18 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(15),
                             ),
                           ),
-                          child: _isLoading 
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                              'เข้าสู่ระบบ',
-                              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'เข้าสู่ระบบ',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -193,7 +237,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildInputField(String label, String hint, bool isPassword, TextEditingController controller) {
+  Widget _buildInputField(
+    String label,
+    String hint,
+    bool isPassword,
+    TextEditingController controller,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

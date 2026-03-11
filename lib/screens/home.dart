@@ -4,9 +4,14 @@ import '../../core/constants/app_colors.dart';
 import '../../widgets/custom_header.dart';
 import 'adminnews.dart'; // เรียกใช้หน้า Admin
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   // ฟังก์ชันดึงข้อมูลจากตาราง 'home'
   Future<List<Map<String, dynamic>>> _fetchNews() async {
     final response = await Supabase.instance.client
@@ -21,88 +26,120 @@ class HomeScreen extends StatelessWidget {
     return Column(
       children: [
         // 1. ส่วนหัว (Header) - ใส่ตรงนี้เพื่อให้ติดด้านบนตลอด
-        const CustomHeader(), 
+        const CustomHeader(),
 
         // 2. ส่วนเนื้อหา (Scroll ได้)
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // หัวข้อข่าวสาร
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: Text(
-                    "ข่าวสาร",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.brownDark, // ใช้สีธีม
+          // 👈 1. ครอบด้วย RefreshIndicator
+          child: RefreshIndicator(
+            color: AppColors.brownDark,
+            onRefresh: () async {
+              // 👈 2. เมื่อปัดลง สั่งให้หน้าจอ Build ใหม่เพื่อดึง _fetchNews() อีกรอบ
+              setState(() {});
+            },
+            child: SingleChildScrollView(
+              // 👈 3. ใส่ physics นี้สำคัญมาก ไม่งั้นถ้าข่าวมีน้อยจะปัดลงไม่ได้!
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // หัวข้อข่าวสาร
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+                    child: Text(
+                      "ข่าวสาร",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.brownDark, // ใช้สีธีม
+                      ),
                     ),
                   ),
-                ),
 
-                // รายการข่าวสาร (ดึงจาก Database)
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _fetchNews(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: AppColors.brownDark));
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(child: Text("เกิดข้อผิดพลาด: ${snapshot.error}"));
-                    }
-
-                    final newsList = snapshot.data ?? [];
-
-                    if (newsList.isEmpty) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(20.0),
-                          child: Text("ยังไม่มีข่าวสารใหม่", style: TextStyle(color: Colors.grey)),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: EdgeInsets.zero, // ลบ padding บนล่างออกเพื่อให้ชิดขอบ
-                      shrinkWrap: true, 
-                      physics: const NeverScrollableScrollPhysics(), // ให้ Scroll ตาม Parent
-                      itemCount: newsList.length,
-                      itemBuilder: (context, index) {
-                        final item = newsList[index];
-                        return _buildNewsCard(
-                          "ประกาศจากหอพัก", 
-                          item['news'] ?? '',
+                  // รายการข่าวสาร (ดึงจาก Database)
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchNews(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.brownDark,
+                          ),
                         );
-                      },
-                    );
-                  },
-                ),
+                      }
 
-                const SizedBox(height: 20),
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text("เกิดข้อผิดพลาด: ${snapshot.error}"),
+                        );
+                      }
 
-                // ปุ่ม Admin (สำหรับ Dev เท่านั้น)
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AdminNewsPage()),
+                      final newsList = snapshot.data ?? [];
+
+                      if (newsList.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text(
+                              "ยังไม่มีข่าวสารใหม่",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: EdgeInsets
+                            .zero, // ลบ padding บนล่างออกเพื่อให้ชิดขอบ
+                        shrinkWrap: true,
+                        physics:
+                            const NeverScrollableScrollPhysics(), // ให้ Scroll ตาม Parent
+                        itemCount: newsList.length,
+                        itemBuilder: (context, index) {
+                          final item = newsList[index];
+                          return _buildNewsCard(
+                            "ประกาศจากหอพัก",
+                            item['news'] ?? '',
+                          );
+                        },
                       );
                     },
-                    icon: const Icon(Icons.admin_panel_settings, color: Colors.redAccent),
-                    label: const Text("จัดการข่าวสาร (Admin Mode)", style: TextStyle(color: Colors.redAccent)),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.1),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ปุ่ม Admin (สำหรับ Dev เท่านั้น)
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AdminNewsPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.admin_panel_settings,
+                        color: Colors.redAccent,
+                      ),
+                      label: const Text(
+                        "จัดการข่าวสาร (Admin Mode)",
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                
-                const SizedBox(height: 40), // เผื่อพื้นที่ด้านล่าง
-              ],
+
+                  const SizedBox(height: 40), // เผื่อพื้นที่ด้านล่าง
+                ],
+              ),
             ),
           ),
         ),
