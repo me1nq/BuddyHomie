@@ -12,7 +12,7 @@ Buddy Homie คือแอปพลิเคชันบนสมาร์ท�
 * เพื่อพัฒนาระบบยืนยันตัวตนและการจัดการสิทธิ์ผู้ใช้แบบ Role-based Access Control
 * เพื่อยกระดับแอปพลิเคชันบริหารจัดการหอพักในปัจจุบัน.
 
-## เทคโนโลยีที่ใช้ (Tech Stack)
+## เทคโนโลยีที่ใช้ (Tech Stack!)
 * **Frontend:** Flutter
 * **Backend & Database:** Supabase
 * **Design:** Figma
